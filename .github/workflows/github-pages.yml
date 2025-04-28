@@ -1,0 +1,59 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup deployment
+        run: |
+          # Create a temporary directory for processing
+          mkdir -p _site
+          
+          # Copy everything to _site
+          cp -r * _site/ || true
+          
+          # Create a base path script that can be included in all pages
+          echo "window.BASE_PATH = '/tsafira-travel-planner';" > _site/js/base-path.js
+          
+          # Fix paths in HTML files
+          find _site -name "*.html" -type f -exec sed -i 's|href="../|href="/tsafira-travel-planner/|g' {} \;
+          find _site -name "*.html" -type f -exec sed -i 's|src="../|src="/tsafira-travel-planner/|g' {} \;
+          find _site -name "*.html" -type f -exec sed -i 's|href="./|href="/tsafira-travel-planner/|g' {} \;
+          find _site -name "*.html" -type f -exec sed -i 's|src="./|src="/tsafira-travel-planner/|g' {} \;
+          
+          # Specifically fix paths in index.html since it's now in the root folder
+          if [ -f "_site/index.html" ]; then
+            sed -i 's|href="css/|href="/tsafira-travel-planner/css/|g' _site/index.html
+            sed -i 's|href="pages/|href="/tsafira-travel-planner/pages/|g' _site/index.html
+            sed -i 's|src="js/|src="/tsafira-travel-planner/js/|g' _site/index.html
+          fi
+          
+          # Fix paths in JavaScript files
+          find _site -name "*.js" -type f -exec sed -i "s|from '../|from '/tsafira-travel-planner/|g" {} \;
+          find _site -name "*.js" -type f -exec sed -i "s|from './|from '/tsafira-travel-planner/|g" {} \;
+          find _site -name "*.js" -type f -exec sed -i "s|'../|'/tsafira-travel-planner/|g" {} \;
+          find _site -name "*.js" -type f -exec sed -i "s|'./|'/tsafira-travel-planner/|g" {} \;
+          
+          # Debug output
+          echo "Files in _site:"
+          find _site -type f | sort | head -n 20
+
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4.4.1
+        with:
+          folder: _site
+          branch: gh-pages
+          clean: true
